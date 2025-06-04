@@ -1,0 +1,8 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Release.Name }}-chat-backend-defaults
+  labels:
+    {{- include "tlm.labels" . | nindent 4 }}
+data:
+    {{ toYaml .Values.chat_backend.defaults | nindent 4 }}

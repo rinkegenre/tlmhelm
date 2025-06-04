@@ -1,0 +1,12 @@
+{{- if contains "ClusterIP" .Values.chat_backend.service.type }}
+To access the TLM chat backend via port-forwarding, run the following commands:
+  export SERVICE_NAME=$(kubectl get services --namespace {{ .Release.Namespace }} -l "app.kubernetes.io/name={{ include "tlm.name" . }},app.kubernetes.io/instance={{ .Release.Name }}" -o jsonpath="{.items[0].metadata.name}")
+  export SERVICE_PORT=$(kubectl get service --namespace {{ .Release.Namespace }} $SERVICE_NAME -o jsonpath="{.spec.ports[0].port}")
+  echo "Visit http://127.0.0.1:8080/api/docs to use your application"
+  kubectl --namespace {{ .Release.Namespace }} port-forward service/$SERVICE_NAME $SERVICE_PORT
+{{- end }}
+
+To access the chat backend using an ingress, you can do so by running the following:
+echo 'service.name: $(kubectl get services --namespace {{ .Release.Namespace }} -l "app.kubernetes.io/name={{ include "tlm.name" . }},app.kubernetes.io/instance={{ .Release.Name }}" -o jsonpath="{.items[0].metadata.name}")'
+echo 'service.port: $(kubectl get service --namespace {{ .Release.Namespace }} $SERVICE_NAME -o jsonpath="{.spec.ports[0].port}")'
+echo 'uri_prefix: /api'

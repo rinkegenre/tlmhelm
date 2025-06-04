@@ -1,0 +1,75 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-chat-backend
+  labels:
+    {{- include "tlm.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "tlm.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "tlm.selectorLabels" . | nindent 8 }}
+        tlm.chat-backend: "true"
+        azure.workload.identity/use: "true"
+    spec:
+      serviceAccountName: {{ .Values.chat_backend.service_account }}
+      {{- if .Values.imagePullSecret.enabled }}
+      imagePullSecrets:
+        - name: {{ .Values.imagePullSecret.name }}
+      {{- end }}
+      containers:
+        - name: {{ .Chart.Name }}-chat-backend
+          {{if .Values.chat_backend.image.tag }}
+          image: "{{ .Values.chat_backend.image.repository }}:{{ .Values.chat_backend.image.tag }}"
+          {{else}}
+          image: "{{ .Values.chat_backend.image.repository }}:{{ .Chart.Version }}"
+          {{end}}
+          imagePullPolicy: {{ .Values.chat_backend.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.chat_backend.container.port }}
+              protocol: TCP
+          env:
+            - name: LITELLM_LOCAL_MODEL_COST_MAP
+              value: "True"
+            - name: UVICORN_PORT
+              value: "{{ .Values.chat_backend.container.port }}"
+            - name: NUM_PROXIES
+              value: "{{ .Values.chat_backend.num_proxies }}"
+            - name: ENVIRONMENT
+              value: "{{ .Values.environment }}"
+          envFrom:
+            {{- if .Values.chat_backend.secret_name }}
+            - secretRef:
+                name: {{ .Values.chat_backend.secret_name}}
+            {{- end }}
+            - configMapRef:
+                name: {{ .Release.Name }}-chat-backend-defaults
+          startupProbe:
+            httpGet:
+              path: /api/health/
+              port: {{ .Values.chat_backend.container.port }}
+            failureThreshold: 30
+            periodSeconds: 10
+          livenessProbe:
+            initialDelaySeconds: 30
+            periodSeconds: 60
+            timeoutSeconds: 1
+            failureThreshold: 2
+            httpGet:
+              path: /api/health/
+              port: {{ .Values.chat_backend.container.port }}
+          readinessProbe:
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 1
+            failureThreshold: 3
+            httpGet:
+              path: /api/health/
+              port: {{ .Values.chat_backend.container.port }}
+          resources:
+            {{- toYaml .Values.chat_backend.resources | nindent 12 }}
